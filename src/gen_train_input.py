@@ -36,8 +36,7 @@ def get_noncoding_seqs(bitmap, direction):
                 start = index
             pass
         index += 1
-        last_bit = bit       
-        
+        last_bit = bit
 
 if __name__ == '__main__':
     usage  = '''usage: %prog -i <input sequence file> -p <input ptt> [-f] [-r] [-b buffer] \n
@@ -46,7 +45,6 @@ if __name__ == '__main__':
     parser.add_option("-i", "--input",   dest="input", default=None, help="Input sequence file.")
     parser.add_option("-p", "--ptt",     dest="ptt", default=None, help="Input ptt table.")
     parser.add_option("-b", "--buffer",  dest="buf", default=60, help="Forward / reverse buffer region")
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=True, help="Verbose [default off]")
     parser.add_option("-f", "--fasta", dest="fasta", action="store_true", default=False, help="Fasta output (default csv)")
     parser.add_option("-t", "--tab", dest="tabsep", action="store_true", default=False,  help="Tab separated")
     
@@ -54,7 +52,15 @@ if __name__ == '__main__':
     buf = int(opts.buf)
     if not (opts.input and os.path.isfile(opts.input) ):
         parser.error("Missing input file %s"%(opts.input, ))
-        
+         
+    segs = opts.input.split('/')
+
+    last = segs[-1]
+    segs2 = last.split('.')
+    seqid = segs2[0]
+    
+    print "seqid=", seqid
+    
     if not opts.ptt:
         pttfile = os.path.splitext(opts.input)[0] + ".ptt"
     else:
@@ -67,8 +73,6 @@ if __name__ == '__main__':
     upstream = buf
     downstream = buf
     
-    if opts.verbose: 
-        sys.stderr.write("Processing %s and %s... \n"%(opts.input, pttfile))
     in_handle  = open(opts.input)
     ptt_handle = open(pttfile)
     record=SeqIO.parse(in_handle, "fasta").next()
@@ -76,8 +80,8 @@ if __name__ == '__main__':
     bitmap_fwd = [0 for i in range(len(record))]
     bitmap_rev = [0 for i in range(len(record))]
     
-    outfilename_coding = "train_fwd_%s" % opts.input
-    outfilename_noncoding = "train_noncoding_%s.csv" %  opts.input
+    outfilename_coding = "train_fwd_%s" % seqid
+    outfilename_noncoding = "train_noncoding_%s.csv" % seqid
     
     if opts.fasta:
         outfilename_coding += ".fasta"
@@ -85,7 +89,7 @@ if __name__ == '__main__':
         outfilename_coding += ".csv"
         
     outfile_coding = open(outfilename_coding, "w")
-    outfile_noncoding = open("train_noncoding_%s.csv" %  opts.input, "w")
+    outfile_noncoding = open("train_noncoding_%s.csv" %  seqid, "w")
                     
     for line in ptt_handle:
         fields = line.split()
@@ -156,4 +160,3 @@ if __name__ == '__main__':
     outfile_coding.close()
     outfile_noncoding.close()
     
-    if opts.verbose: sys.stderr.write("Done. \n")
