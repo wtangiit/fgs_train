@@ -9,7 +9,7 @@ import sys, os
 from optparse import OptionParser
 from Bio import SeqIO
 
-def get_noncoding_seqs(bitmap, direction):
+def get_noncoding_seqs(bitmap, direction, label, record, outfile_noncoding):
     '''retrieve noncoding area by bitmap'''
     last_bit = 1
     index = 0
@@ -37,51 +37,43 @@ def get_noncoding_seqs(bitmap, direction):
             pass
         index += 1
         last_bit = bit
-
-if __name__ == '__main__':
-    usage  = '''usage: %prog -i <input sequence file> -p <input ptt> [-f] [-r] [-b buffer] \n
-    purpose: produces tables of sequence subsets corresponding to genes with upstream and downstream sequences'''
-    parser = OptionParser(usage)
-    parser.add_option("-i", "--input",   dest="input", default=None, help="Input sequence file.")
-    parser.add_option("-p", "--ptt",     dest="ptt", default=None, help="Input ptt table.")
-    parser.add_option("-b", "--buffer",  dest="buf", default=60, help="Forward / reverse buffer region")
-    parser.add_option("-f", "--fasta", dest="fasta", action="store_true", default=False, help="Fasta output (default csv)")
-    parser.add_option("-t", "--tab", dest="tabsep", action="store_true", default=False,  help="Tab separated")
+        
+def gen_train_seqs(input_fna, input_ptt=None, fasta=False):
+    '''generate csv from raw input fna'''
+    print "generating .csv from .fna and .ptt. input file:", input_fna
     
-    (opts, args) = parser.parse_args()
-    buf = int(opts.buf)
-    if not (opts.input and os.path.isfile(opts.input) ):
-        parser.error("Missing input file %s"%(opts.input, ))
-         
     segs = opts.input.split('/')
-
     last = segs[-1]
     segs2 = last.split('.')
     seqid = segs2[0]
     
     print "seqid=", seqid
     
-    if not opts.ptt:
-        pttfile = os.path.splitext(opts.input)[0] + ".ptt"
-    else:
-        pttfile = opts.ptt
+    if not input_ptt:
+        input_ptt = os.path.splitext(input_fna)[0] + ".ptt"
         
-    if not os.path.isfile(pttfile):
-        parser.error("Missing input ptt file %s"%(pttfile))
+    if not os.path.isfile(input_ptt):
+        parser.error("Missing input ptt file %s"%(input_ptt))
         
-    print "inputfile=%s, ptt file=%s, buf=%s" % (opts.input, pttfile, buf)
+    print "inputfile=%s, ptt file=%s, buf=%s" % (input_fna, input_ptt, buf)
     upstream = buf
     downstream = buf
     
-    in_handle  = open(opts.input)
-    ptt_handle = open(pttfile)
+    in_handle  = open(input_fna)
+    ptt_handle = open(input_ptt)
     record=SeqIO.parse(in_handle, "fasta").next()
     
     bitmap_fwd = [0 for i in range(len(record))]
     bitmap_rev = [0 for i in range(len(record))]
     
-    outfilename_coding = "train_fwd_%s" % seqid
-    outfilename_noncoding = "train_noncoding_%s.csv" % seqid
+    parent_dir = os.path.dirname(input_fna)
+    out_dir = parent_dir + "/tempdata"
+    print "temp_data=", out_dir
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    
+    outfilename_coding = "%s/train_fwd_%s" % (out_dir, seqid)
+    outfilename_noncoding = "%s/train_noncoding_%s.csv" % (out_dir, seqid)
     
     if opts.fasta:
         outfilename_coding += ".fasta"
@@ -89,7 +81,7 @@ if __name__ == '__main__':
         outfilename_coding += ".csv"
         
     outfile_coding = open(outfilename_coding, "w")
-    outfile_noncoding = open("train_noncoding_%s.csv" %  seqid, "w")
+    outfile_noncoding = open(outfilename_noncoding, "w")
                     
     for line in ptt_handle:
         fields = line.split()
@@ -101,6 +93,7 @@ if __name__ == '__main__':
             direction = fields[1]
             try:
                 label= fields[5]
+                print "label=", label
             except:
                 label=""
             if direction == "+":
@@ -109,7 +102,7 @@ if __name__ == '__main__':
                     pass
                 else:
                     msg = ""
-                    if opts.fasta:
+                    if fasta:
                         #print ">%s_%s-%s_%s_plusminus%d length=%d"%(label, start, stop, direction, buf, (stop-start))
                         msg += ">%s_%s-%s_%s_plusminus%d length=%d\n"%(label, start, stop, direction, buf, (stop-start))
                     else:
@@ -133,7 +126,7 @@ if __name__ == '__main__':
                     pass
                 else:
                     msg = ""
-                    if opts.fasta:
+                    if fasta:
                     #   print ">%s_%s-%s_%s_plusminus%d length=%d"%(label, start, stop, direction, buf, (stop-start))
                         msg += ">%s_%s-%s_%s_plusminus%d length=%d\n"%(label, start, stop, direction, buf, (stop-start))
                     else:
@@ -152,11 +145,33 @@ if __name__ == '__main__':
                     for i in range(start-1, stop):
                         bitmap_rev[i] = 1    
                     
-    #retrieve noncoding area
-    get_noncoding_seqs(bitmap_fwd, '+')
-    get_noncoding_seqs(bitmap_rev, '-')
+    #retrieve noncoding area   ???needcheck
+    get_noncoding_seqs(bitmap_fwd, '+', label, record, outfile_noncoding)
+    get_noncoding_seqs(bitmap_rev, '-', label, record, outfile_noncoding)
                     
     in_handle.close()
     outfile_coding.close()
     outfile_noncoding.close()
+    
+
+if __name__ == '__main__':
+    usage  = '''usage: %prog -i <input sequence file> -p <input ptt> [-f] [-r] [-b buffer] \n
+    purpose: produces tables of sequence subsets corresponding to genes with upstream and downstream sequences'''
+    parser = OptionParser(usage)
+    parser.add_option("-i", "--input",   dest="input", default=None, help="Input sequence file.")
+    parser.add_option("-p", "--ptt",     dest="ptt", default=None, help="Input ptt table.")
+    parser.add_option("-b", "--buffer",  dest="buf", default=60, help="Forward / reverse buffer region")
+    parser.add_option("-f", "--fasta", dest="fasta", action="store_true", default=False, help="Fasta output (default csv)")
+    parser.add_option("-t", "--tab", dest="tabsep", action="store_true", default=False,  help="Tab separated")
+    
+    (opts, args) = parser.parse_args()
+    buf = int(opts.buf)
+    if not (opts.input and os.path.isfile(opts.input) ):
+        parser.error("Missing input file %s"%(opts.input, ))
+        sys.exit(1)
+            
+    gen_train_seqs(opts.input)
+    
+         
+  
     
