@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
 '''fgs_train.py: produce needed training data set for running FragGeneScan HMM model
-file can be trained: gene, rgene, noncoding, start, stop, start1, stop1
+file can be trained: gene, rgene, noncoding, start, stop, start1, stop1.
 
 Usage:
 
-fgs_train.py -i input_gene_seq.csv [-n input_noncoding_seq.csv] [-g]
+  fgs_train./py [-i <input sequence file>  | -d <input directory>] [-n <input noncoding file>] [-g]"
 
-with -g, it will stratify genes by gc content (from 26% to 70%)
-without -g, it will not stratify, but for compatibility with FragGeneScan, 
+either a sequence file or a directory should be specified (can not specify both)
+if specify an input sequence file, the single input file is used in training
+if specify a directory containing sequence files, all the files within that directory are used in training
+
+it will stratify genes by gc content (from 26% to 70%) unless setting '-g False' or '--gc_content=False' 
 the output file also contains 45 groups of probability data, only difference 
 is that every group has the same data.
 ''' 
@@ -41,7 +44,6 @@ NUM_STRATIFY = 45
 NUM_M_STATE = 6
 NUM_DIMER = 16
 NUM_NT = 4
-
 
 def trimer_to_int(triplet):
     '''return number by triplet'''
@@ -82,7 +84,7 @@ def parse_input_file(filename, noncoding=False):
         if len(splits) == 3:
             seq_len = len(splits[2])
             if seq_len > 0:
-                if not noncoding and seq_len < 123:
+                if False and not noncoding and seq_len < 123:
                     print "**********************************************"
                     print "Warning!!:the input data contains invalid data, line %d, sequence length=%s" % (linenumber, seq_len)
                     print "The invalid sequence is thrown out to continue, but replacing input data and re-training is suggested." 
@@ -90,6 +92,20 @@ def parse_input_file(filename, noncoding=False):
                     continue
                 seq_lists.append(splits[2])
     return seq_lists
+
+def parse_input_dir(input_dir):
+    '''parse the input files in the given input_dir'''
+    listing = os.listdir(input_dir)
+    gene_list = []
+    noncoding_list = [] 
+    for infile in listing:
+        if infile.find("fwd") > 0:
+            seq_list = parse_input_file(infile)
+            gene_list.extend(seq_list)
+        if infile.find("noncoding") > 0:
+            seq_list = parse_input_file(infile, noncoding=False)
+            noncoding_list.extend(seq_list)
+    return gene_list, noncoding_list
     
 def train_gene_transition(seq_list, output_file):
     '''train transition probability of matching states'''
@@ -319,38 +335,48 @@ def train_non_coding(seq_list):
             noncoding_file.write(line)                    
                                   
     noncoding_file.close()
-    print "output file produced: noncoding"                                
+    print "output file produced: noncoding"   
+                                 
             
 if __name__ == '__main__':
-    usage  = "usage: %prog -i <input sequence file> -n <input noncoding file> [-g]"
+    usage  = "usage: %prog [-i <input sequence file>  | -d <input directory>] [-n <input noncoding file>] [-g]"
     parser = OptionParser(usage)
     parser.add_option("-i", "--input",  dest="input", type = "string", default=None, help="Input gene sequence file.")
+    parser.add_option("-d", "--input_dir",  dest="input_dir", type = "string", default=None, help="Directory containing input gene sequence files.")
     parser.add_option("-n", "--noncoding",  dest="noncoding", type = "string", default=None, help="Input noncoding sequence file.")
-    parser.add_option("-g", "--gc", dest="gc_content", action="store_true", default=False, help="stratify by gene GC content")
+    parser.add_option("-g", "--gc", dest="gc_content", action="store_true", default=True, help="stratify by gene GC content")
     
     (opts, args) = parser.parse_args()
     
     STRATIFY = opts.gc_content
-    
     msg = "Stratify= %s" % STRATIFY
-    if STRATIFY==False:
-        msg += ", use -g to enable gc_content stratification"
-    print msg    
- 
-    if not (opts.input and os.path.isfile(opts.input) ):
-        parser.error("Missing input file %s"%(opts.input, ))
+    
+    gene_list = []
+    noncoding_list = []
+    
+    if opts.input:
+        if os.path.isfile(opts.input):
+            gene_list = parse_input_file(opts.input)    
+            if opts.noncoding and os.path.isfile(opts.concoding):
+                noncoding_list = parse_input_file(opts.noncoding, noncoding=True)     
+        else:
+            parser.error("Specified input file not found: " % opts.input)
+            
+    elif opts.input_dir:
+        if os.path.isdir(opts.input_dir):
+            os.chdir(opts.input_dir)
+            gene_list, noncoding_list = parse_input_dir(opts.input_dir)
+        else:
+            parser.error("Specified input directory not found: ", opts.input_dir)   
+            
+    else:
+        parser.error("Missing input file or input directory")
         
-    inputFile = opts.input 
+    if gene_list:
+        print "total # of gene sequences=", len(gene_list)
+        train_gene_transition_two_way(gene_list)
+        train_start_stop_adjacent_prob(gene_list)
     
-    seq_list = parse_input_file(inputFile)
-    print "total # of sequences=", len(seq_list)
-    
-    train_gene_transition_two_way(seq_list)
-    train_start_stop_adjacent_prob(seq_list)
-    
-    if opts.noncoding and os.path.isfile(opts.noncoding):
-        noncoding_seq_list = parse_input_file(opts.noncoding, noncoding=True)
-        train_non_coding(noncoding_seq_list)
+    if noncoding_list:
+        train_non_coding(noncoding_list)
         
-        
-    
