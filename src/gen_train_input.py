@@ -38,22 +38,24 @@ def get_noncoding_seqs(bitmap, direction, label, record, outfile_noncoding):
         index += 1
         last_bit = bit
         
-def gen_train_seqs(input_fna, input_ptt=None, fasta=False):
+def gen_train_seqs(input_fna, tempdata_dir, input_ptt=None, fasta=False, buf=60):
     '''generate csv from raw input fna'''
-    print "generating .csv from .fna and .ptt. input file:", input_fna
+
     
-    segs = opts.input.split('/')
+    segs = input_fna.split('/')
     last = segs[-1]
     segs2 = last.split('.')
     seqid = segs2[0]
     
-    print "seqid=", seqid
+    print "generating .csv for:", seqid
     
     if not input_ptt:
         input_ptt = os.path.splitext(input_fna)[0] + ".ptt"
+        print "input_ptt=", input_ptt
         
     if not os.path.isfile(input_ptt):
-        parser.error("Missing input ptt file %s"%(input_ptt))
+        print "Missing input ptt file %s"% (input_ptt)
+        sys.exit()
         
     print "inputfile=%s, ptt file=%s, buf=%s" % (input_fna, input_ptt, buf)
     upstream = buf
@@ -66,16 +68,10 @@ def gen_train_seqs(input_fna, input_ptt=None, fasta=False):
     bitmap_fwd = [0 for i in range(len(record))]
     bitmap_rev = [0 for i in range(len(record))]
     
-    parent_dir = os.path.dirname(input_fna)
-    out_dir = parent_dir + "/tempdata"
-    print "temp_data=", out_dir
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    outfilename_coding = "%s/train_fwd_%s" % (tempdata_dir, seqid)
+    outfilename_noncoding = "%s/train_noncoding_%s.csv" % (tempdata_dir, seqid)
     
-    outfilename_coding = "%s/train_fwd_%s" % (out_dir, seqid)
-    outfilename_noncoding = "%s/train_noncoding_%s.csv" % (out_dir, seqid)
-    
-    if opts.fasta:
+    if fasta:
         outfilename_coding += ".fasta"
     else:
         outfilename_coding += ".csv"
@@ -93,7 +89,6 @@ def gen_train_seqs(input_fna, input_ptt=None, fasta=False):
             direction = fields[1]
             try:
                 label= fields[5]
-                print "label=", label
             except:
                 label=""
             if direction == "+":
