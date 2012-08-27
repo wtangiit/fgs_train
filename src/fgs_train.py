@@ -336,7 +336,27 @@ def train_non_coding(seq_list):
                                   
     noncoding_file.close()
     print "output file produced: noncoding"   
-                                 
+        
+def fgs_train_dir(input_dir):
+    '''training fgs by input directory. invoked by fgs_train_pipelie'''
+    
+    print "start training, input directory:", input_dir
+    gene_list = []
+    noncoding_list = []
+    if os.path.isdir(input_dir):
+        os.chdir(input_dir)
+        gene_list, noncoding_list = parse_input_dir(input_dir)
+    else:
+        parser.error("Specified input directory not found: ", opts.input_dir)   
+    
+    if gene_list:
+        print "total # of gene sequences=", len(gene_list)
+        train_gene_transition_two_way(gene_list)
+        train_start_stop_adjacent_prob(gene_list)
+    
+    if noncoding_list:
+        train_non_coding(noncoding_list)
+                 
             
 if __name__ == '__main__':
     usage  = "usage: %prog [-i <input sequence file>  | -d <input directory>] [-n <input noncoding file>] [-g]"

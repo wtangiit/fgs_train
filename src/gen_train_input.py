@@ -51,13 +51,12 @@ def gen_train_seqs(input_fna, tempdata_dir, input_ptt=None, fasta=False, buf=60)
     
     if not input_ptt:
         input_ptt = os.path.splitext(input_fna)[0] + ".ptt"
-        print "input_ptt=", input_ptt
         
     if not os.path.isfile(input_ptt):
         print "Missing input ptt file %s"% (input_ptt)
         sys.exit()
         
-    print "inputfile=%s, ptt file=%s, buf=%s" % (input_fna, input_ptt, buf)
+#    print "inputfile=%s, ptt file=%s, buf=%s" % (input_fna, input_ptt, buf)
     upstream = buf
     downstream = buf
     

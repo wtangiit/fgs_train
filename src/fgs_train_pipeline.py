@@ -13,9 +13,8 @@ import ConfigParser
 import subprocess
  
 import gen_train_input
-  
-rec_fields = ['date', 'path_fgs', 'git_tag', 'path_train', 'path_input', 'path_output']
- 
+import fgs_train 
+   
 def parse_genome_list(list_file):
   
     '''parse the genome list file, return a python list of genome id'''
@@ -41,11 +40,11 @@ def iterate_director(dir_path, key_list=None):
                 fna_file_list.append(fna_file_path)
                 print fna_file_path
     else:
+        print "iterate all: ", dir_path
         listing = os.listdir(dir_path)
         for infile in listing:
             if infile.split('.')[-1] == "fna":
                 fna_file_path = dir_path + '/' + infile
-                print "current file is: " + fna_file_path
                 fna_file_list.append(fna_file_path)
     return fna_file_list
 
@@ -64,7 +63,7 @@ if __name__ == '__main__':
     data_dir = opts.dir.rstrip('/')
     print "data_dir=", data_dir
         
-    train_name = "TrainAll"
+    train_name = "ALL_" + opts.dir.split('/')[-1]
     
     genome_list = []
     
@@ -85,8 +84,13 @@ if __name__ == '__main__':
     
     if not os.path.exists(tempdata_dir):
         os.makedirs(tempdata_dir)
-    
-    fna_file_list = iterate_director(data_dir, genome_list)
+        
+    if len(genome_list) > 0:
+        fna_file_list = iterate_director(data_dir, genome_list)
+    else:
+        fna_file_list = iterate_director(data_dir)
     
     for fna_file in fna_file_list:
         gen_train_input.gen_train_seqs(fna_file, tempdata_dir)
+        
+    fgs_train.fgs_train_dir(tempdata_dir)
