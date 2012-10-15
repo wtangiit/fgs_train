@@ -1,0 +1,133 @@
+
+in FGS 1.03:
+post_start_r and post_start
+directories containing
+44 files
+each starting with a Refseq accession number
+each otherwise 62 x 62 matrices of small numbers
+
+later versions 
+44 blocks of  61 x 62 matrices separated by 44 NC_numbers
+These were an archaic method of organizing the emission probability matrices and GC-content stratified materials.
+
+run_hmm sets filename locations and calls 
+ get_train_from_file(
+ hmm_file, 
+ &hmm, 
+ mstate_file,   # gene 
+ rstate_file,   # rgene
+ nstate_file,   # noncoding
+ sstate_file,   # start
+ pstate_file,   # stop
+ s1state_file,  # stop1
+ p1state_file,  # start1
+ dstate_file,   # pwm
+ &train
+ );
+
+void get_train_from_file(
+char *filename, 
+	hmm_ptr->tr[tr2int(name)] = prob;                          # Transition
+	hmm_ptr->tr_M_I[nt2int(start[0])][nt2int(end[0])] = prob;  # TransitionMI
+	hmm_ptr->tr_I_I[nt2int(start[0])][nt2int(end[0])] = prob;  # TransitionII
+        hmm_ptr->pi[i] = prob                                      # PI 
+HMM *hmm_ptr, 
+char *mfilename, 
+	train_ptr->trans[p][i][j][k] = prob;                       #  44 cg x  6 period x 16 condition
+char *mfilename1, 
+        train_ptr->rtrans[p][i][j][k] = prob;
+
+char *nfilename,
+        train_ptr->noncoding[p][j][k] = prob;                      # 44 x 4 x 4
+
+char *sfilename,
+        train_ptr->start[p][j][k] = prob;      tr_S               # 44 x 61 x 64  
+
+char *pfilename,
+        train_ptr->stop[p][j][k] = prob;       tr_E               # 44 x 58 x 64   
+#  source code is likely error, should be pfilename but currently read from sfilename
+
+char *s1filename,
+        train_ptr->start1[p][j][k] = prob;     tr_S1              # 44 x 58 x 64
+
+char *p1filename,
+        train_ptr->stop1[p][j][k] = prob;      tr_E1             # 44 x 61 x 64 
+
+char *dfilename, 
+      train_ptr->S_dist[p][k] = prob;                            # 44 x 6 each
+      train_ptr->E_dist[p][k] = prob;
+      train_ptr->S1_dist[p][k] = prob;
+      train_ptr->E1_dist[p][k] = prob;
+
+TRAIN *train_ptr
+
+
+==gene,rgene    4365 lines
+45 blocks of 96x4 small numbers
+
+==start start1 stop stop1     2790 lines 
+45 blocks, indicated by >26...>70  indicated by >NC_XXXXXX in early versions
+45 x 61 lines x 64 rows
+
+==pwm 
+45 blocks of 4x6 matrices not all numbers are small
+Each headed by a single number 25 - 70 incl.
+PWM matrix contains coefficients for gaussian models called hkd and rkd 
+These models are models for the PWM scores for true and 
+false stop codons; the naive Bayesian  h_kd / (h_kd+r_kd)
+represents the probability of start codon being real given 
+the 30 bp upstream and downstream.
+
+==noncoding
+45 blocks x 4x4
+
+==complete, 454_3, 454_10, illumina_10, illumina_5  ...
+each 79 lines long
+These contain key-value pairs for the super-transitions that appear to be set by hand 
+
+Also contains two 4x4 matrixes with A C T G labels that seem to be transitions from the error model.
+
+ (hmm_ptr->e_M,    train_ptr->trans[cg_count],    sizeof(hmm_ptr->e_M));
+ (hmm_ptr->e_M_1,  train_ptr->rtrans[cg_count],   sizeof(hmm_ptr->e_M_1));
+ (hmm_ptr->tr_R_R, train_ptr->noncoding[cg_count],sizeof(hmm_ptr->tr_R_R));
+
+ (hmm_ptr->tr_S,   train_ptr->start[cg_count],    sizeof(hmm_ptr->tr_S));   # line 637  i=-30; i<=30 
+ (hmm_ptr->tr_E,   train_ptr->stop[cg_count],     sizeof(hmm_ptr->tr_E));   # line 513  i=-60; i<=-3  
+ (hmm_ptr->tr_S_1, train_ptr->start1[cg_count],   sizeof(hmm_ptr->tr_S_1)); # line 578  i=3  ; i<=60
+ (hmm_ptr->tr_E_1, train_ptr->stop1[cg_count],    sizeof(hmm_ptr->tr_E_1)); # line 688  i=-30; i<=30
+
+ (hmm_ptr->S_dist, train_ptr->S_dist[cg_count],   sizeof(hmm_ptr->S_dist));
+ (hmm_ptr->E_dist, train_ptr->E_dist[cg_count],   sizeof(hmm_ptr->E_dist));
+ (hmm_ptr->S1_dist,train_ptr->S1_dist[cg_count],  sizeof(hmm_ptr->S1_dist));
+ (hmm_ptr->E1_dist,train_ptr->E1_dist[cg_count],  sizeof(hmm_ptr->E1_dist));
+
+
+Running test code on artificial ecoli-- 
+Uninitialized value $sff in split line 141
+Note: raw output of the complete runs contains >header  as the last line
+--this is normal behavior if the final sequence does not have any predicitions.
+
+post_process is only run when "complete" is specified
+post_process is a perl script that makes minor modifications to the FGS binary
+output. Otherwise the binary output is simply renamed.
+
+specifying "complete" has the side effect of truncating the 
+amino acid length distribution to l >= 41 amino acids
+(not incl start and stop codons).
+
+Trying to run the start/stop codon version on ALL-1000 contigs from NEC, 
+I get a segfault on mac.  --> gdb
+hmm_lib.c:252:
+		  }else if ((i==M3_STATE || i==M6_STATE) 
+                           && (j-I1_STATE >=1) && 
+                            (O[temp_i[j-I1_STATE]-1] == 'T'||O[temp_i[j-I1_STATE]-1] =='t') && 
+using print temp_i[j-17] -1    
+The test should be ( temp_i[j-I1_state] >=1 )               fixed this one.
+
+Valgrind reports these two memory leaks:
+run_hmm.c:238  allocate obs_seq 
+run_hmm.c:228  allocate obs_head
+These are both in the input parser -- dynamically allocating space for obs_head even when it overruns the buffer.
+Obs_head will overflow into obs_seq, causing obs_seq to overrun the end of its buffer.
+--I think this is fixed now.
+
