@@ -377,7 +377,7 @@ if __name__ == '__main__':
     if opts.input:
         if os.path.isfile(opts.input):
             gene_list = parse_input_file(opts.input)    
-            if opts.noncoding and os.path.isfile(opts.concoding):
+            if opts.noncoding and os.path.isfile(opts.noncoding):
                 noncoding_list = parse_input_file(opts.noncoding, noncoding=True)     
         else:
             parser.error("Specified input file not found: " % opts.input)
