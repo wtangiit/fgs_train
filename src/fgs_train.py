@@ -156,11 +156,15 @@ def train_gene_transition(seq_list, output_file):
                 #  print dimer_list[j],
                 line = ""
                 line_ct = ""
+                ct = 0
                 for i in range(4):
                     if total_ct > 0:
                         codon = "%s%s%s" % (digit2nt[j/4], digit2nt[j%4], digit2nt[i])
                         
                         ct = e_M_counts[k-MIN_GC_CONTENT][m][j][i]
+                        
+                        
+                        
                         prob = round(float(ct) / total_ct, 4)
                         
                         if prob < 0.001:
@@ -168,16 +172,16 @@ def train_gene_transition(seq_list, output_file):
                             if codon in stop_codon_list and m in [2,5]:
                                 prob = 0.0001
                                 
-                        if codon in stop_codon_list and m in [2,5]:
-                            if ct > 0:
-                                print "inframe stop (start1) codon found %s: gc=%s, m=%s, count=%s/%s, prob=%f" % (codon, gc, m, ct, total_ct, float(ct)/total_ct) 
+                        #if codon in stop_codon_list and m in [2,5]:
+                        #    if ct > 0:
+                        #        print "inframe stop (start1) codon found %s: gc=%s, m=%s, count=%s/%s, prob=%f" % (codon, gc, m, ct, total_ct, float(ct)/total_ct) 
              
                     else:
                         prob = 0.0001
                     line += str(prob)
                     line += '\t'
                     
-                    line_ct += str(total_ct)
+                    line_ct += str(ct)
                     line_ct += '\t'                    
                     
                 line = line.strip('\t')
@@ -246,9 +250,12 @@ def train_start_stop_adjacent_prob(seq_list):
 def write_start_stop_file(filename, prob_counts):
     '''write start stop prob into output files, with gc'''
     outfile = open(filename, "w")
+    outfile_ct = open(filename+".ct", "w")
     for gc in range(MIN_GC_CONTENT, MAX_GC_CONTENT + 1):
         line = "%s\n" % gc
+        line_ct = "%s\n" % gc
         outfile.write(line)
+        outfile_ct.write(line_ct)
         
         if STRATIFY:
             k = gc
@@ -257,20 +264,31 @@ def write_start_stop_file(filename, prob_counts):
         
         for i in range(61):
             line = "";
+            line_ct = "";
             total_ct = sum(prob_counts[k - MIN_GC_CONTENT][i])
             for j in range(64):
+                ct = prob_counts[k - MIN_GC_CONTENT][i][j]
                 if total_ct > 0:
-                    prob = round(float(prob_counts[k - MIN_GC_CONTENT][i][j] + 1) / (total_ct + 1), 6)
+                    prob = round(float(ct + 1) / (total_ct + 1), 6)
                 else:
                     prob = 0.000001
                 if prob < 0.000001:
                     prob = 0.000001
                 line += str(prob)
                 line += '\t'
+                line_ct += str(ct)
+                line_ct += '\t'
+                
             line = line.strip('\t')
-            line += ('\n')
+            line += '\n'
+            
+            line_ct = line_ct.strip('\t')
+            line_ct += '\n'
+            
             outfile.write(line)
+            outfile_ct.write(line_ct)
     outfile.close()
+    outfile_ct.close()
     print "output file produced: %s" % filename
             
 def get_reverse_complement(seq):
