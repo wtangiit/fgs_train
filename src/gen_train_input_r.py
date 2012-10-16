@@ -8,13 +8,17 @@
 import sys, os
 from optparse import OptionParser
 from Bio import SeqIO
+import fgs_train
 
-def get_noncoding_seqs(bitmap_dict, direction):
+def get_noncoding_seqs(bitmap_dict, direction, contig_dict, outfile_noncoding):
     '''retrieve noncoding area by bitmap'''
-    last_bit = 1
-    index = 0
-    start = 0
+
+    noncoding_seqs = []
+    
     for contig_id in bitmap_dict.keys():
+        last_bit = 1
+        index = 0
+        start = 0
         record_seq = contig_dict[contig_id]
         bitmap = bitmap_dict[contig_id]
         #print len(bitmap), sum(bitmap)
@@ -25,24 +29,21 @@ def get_noncoding_seqs(bitmap_dict, direction):
                     msg = "%s_%s-%s_%s_noncoding\t%d\t"%(contig_id, start, stop-1, direction, stop-start)
                     
                     if direction == '+':
-                        noncoding_seLq = str(record_seq[start:stop])
+                        noncoding_seq = str(record_seq[start:stop])
                     elif direction == '-':
                         noncoding_seq =  str(record_seq[start:stop].reverse_complement())
-                    
-                    #print "noncoding_seq=", noncoding_seq
-                    
                     msg += noncoding_seq
                     msg += '\n'
                     outfile_noncoding.write(msg)
-                    
-                pass
-            
+
+                    noncoding_seqs.append(noncoding_seq)
             elif bit == 0:
                 if last_bit == 1:
                     start = index
                 pass
             index += 1
-            last_bit = bit       
+            last_bit = bit
+    return noncoding_seqs
         
 def parse_contigs(contigs_file):
     '''parse contigs file, return a dictionary {congig_id: nt_sequence}'''
@@ -62,48 +63,26 @@ def parse_contigs(contigs_file):
     inf.close()
     return contig_dict
 
-if __name__ == '__main__':
-    usage  = '''usage: %prog -d <input directory> [-c contig_path] [-t tbl_path] [-f] [-r] [-b buffer] \n
-    purpose: produces tables of sequence subsets corresponding to genes with upstream and downstream sequences'''
-    parser = OptionParser(usage)
-    parser.add_option("-c", "--contigs",   dest="contigs", default=None, help="Input contigs file.")
-    parser.add_option("-t", "--tbl",     dest="tbl", default=None, help="Input tbl file.")
-    parser.add_option("-b", "--buffer",  dest="buf", default=60, help="Forward / reverse buffer region")
-    parser.add_option("-d", "--dir",   dest="dir", default=".", help="Input contigs file.")
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Verbose [default off]")
-    parser.add_option("-f", "--fasta", dest="fasta", action="store_true", default=False, help="Fasta output (default csv)")
+def gen_train_seqs(dirname, contig_file=None, tbl_file=None):
     
-    (opts, args) = parser.parse_args()
-    buf = int(opts.buf)
+    coding_seqs = []
+    noncoding_seqs = []
     
-    if not (opts.dir and os.path.isdir(opts.dir)):
-        parser.error(("Missing input directory name %s"%(opts.dir, )))
-    
-    dirname = opts.dir
-    
-    if opts.contigs==None:
+    if contig_file==None:
         contig_file = "%s/contigs" % dirname
-    else:
-        contig_file = contig_file
+    
     if not os.path.isfile(contig_file):
-        parser.error("Cannot find input contigs file %s"%(contig_file, ))
+        print "Cannot find input contigs file %s"%(contig_file, )
+        sys.exit(1)
         
-    if opts.tbl==None:
+    if tbl_file==None:
         tbl_file = "%s/Features/peg/tbl" % dirname
-    else:
-        tbl_file = tbl_file
     if not os.path.isfile(tbl_file):
-        parser.error("Cannot find input tbl file %s"%(tbl_file, ))
+        print "Cannot find input tbl file %s"%(tbl_file,)
+        sys.exit(1)
         
-    print "input config=%s, tbl=%s, buf=%s" % (contig_file, tbl_file, buf)
-    upstream = buf
-    downstream = buf
-    
-    if opts.verbose:
-        sys.stderr.write("Processing %s and %s... \n" % (contig_file, tbl_file))
-    
     contig_dict = parse_contigs(contig_file)
-    
+        
     #creating bitmaps marking start stop
     bitmap_fwd_dict = {}
     bitmap_rev_dict = {}
@@ -164,6 +143,7 @@ if __name__ == '__main__':
             msg += seq
             msg += '\n'
             outfile_coding.write(msg)
+            coding_seqs.append(seq)
             
             #marking coding area
             for i in range(start-1, stop):
@@ -187,6 +167,7 @@ if __name__ == '__main__':
                 msg+= seq
                 msg += '\n'
                 outfile_coding.write(msg)
+                coding_seqs.append(seq)
                 
                 #marking coding area
                 for i in range(start-1, stop):
@@ -197,11 +178,65 @@ if __name__ == '__main__':
             pass
                 
 #retrieve noncoding area
-    get_noncoding_seqs(bitmap_fwd_dict, '+')
-    get_noncoding_seqs(bitmap_rev_dict, '-')
+    noncoding_seqs.extend(get_noncoding_seqs(bitmap_fwd_dict, '+', contig_dict, outfile_noncoding))
+    noncoding_seqs.extend(get_noncoding_seqs(bitmap_rev_dict, '-', contig_dict, outfile_noncoding))
                     
     tbl_handle.close()
     outfile_coding.close()
     outfile_noncoding.close()
+    
+    return coding_seqs, noncoding_seqs
+
+if __name__ == '__main__':
+    usage  = '''usage: %prog -d <input directory> [-c contig_path] [-t tbl_path] [-f] [-r] [-b buffer] \n
+    purpose: produces tables of sequence subsets corresponding to genes with upstream and downstream sequences'''
+    parser = OptionParser(usage)
+    parser.add_option("-c", "--contigs",   dest="contigs", default=None, help="Input contigs file.")
+    parser.add_option("-t", "--tbl",     dest="tbl", default=None, help="Input tbl file.")
+    parser.add_option("-b", "--buffer",  dest="buf", default=60, help="Forward / reverse buffer region")
+    parser.add_option("-d", "--dir",   dest="dir", default=".", help="Input contigs file.")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Verbose [default off]")
+    parser.add_option("-f", "--fasta", dest="fasta", action="store_true", default=False, help="Fasta output (default csv)")
+    
+    (opts, args) = parser.parse_args()
+    buf = int(opts.buf)
+    
+    if not (opts.dir and os.path.isdir(opts.dir)):
+        parser.error(("Missing input directory name %s"%(opts.dir, )))
+    
+    dirname = opts.dir
+    
+    if opts.contigs==None:
+        contig_file = "%s/contigs" % dirname
+    else:
+        contig_file = opts.contigs
+    if not os.path.isfile(contig_file):
+        parser.error("Cannot find input contigs file %s"%(contig_file, ))
+
+    if opts.tbl==None:
+        tbl_file = "%s/Features/peg/tbl" % dirname
+    else:
+        tbl_file = opts.tbl
+    if not os.path.isfile(tbl_file):
+        parser.error("Cannot find input tbl file %s"%(tbl_file, ))
+        
+    print "input config=%s, tbl=%s, buf=%s" % (contig_file, tbl_file, buf)
+    upstream = buf
+    downstream = buf
+    
+    if opts.verbose:
+        sys.stderr.write("Processing %s and %s... \n" % (contig_file, tbl_file))
+        
+    coding_seqs, noncoding_seqs = gen_train_seqs(dirname, contig_file, tbl_file)
+    
+    for seq in noncoding_seqs:
+#        print len(noncoding_seqs)
+        pass
+        
+    
+    
+    fgs_train.train_gene_transition_two_way(coding_seqs)
+    fgs_train.train_start_stop_adjacent_prob(coding_seqs)
+    fgs_train.train_non_coding(noncoding_seqs)
     
     if opts.verbose: sys.stderr.write("Done. \n")

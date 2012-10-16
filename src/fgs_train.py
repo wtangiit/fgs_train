@@ -36,8 +36,6 @@ start1_codons = ["CTA", "TTA", "TCA"]
 start_codons = ["ATG", "GTG", "TTG"]
 stop1_codons = ["CAT", "CAC", "CAA"]
 
-STRATIFY = False
-
 MIN_GC_CONTENT = 26
 MAX_GC_CONTENT = 70
 NUM_STRATIFY = 45
@@ -59,6 +57,8 @@ def trimer_to_int(triplet):
 def get_gc_content(sequence):
     '''return gc_content% of a given sequence'''
     gc_count = 0
+    if len(sequence)==0:
+        return 0
     for ch in sequence:
         if ch in ['G', 'C', 'g', 'c']:
             gc_count += 1
@@ -119,11 +119,7 @@ def train_gene_transition(seq_list, output_file):
         
     for seq in seq_list:
         
-        if STRATIFY:
-            gc_content = get_gc_content(seq)
-            
-        else:
-            gc_content = MIN_GC_CONTENT        
+        gc_content = get_gc_content(seq)        
         
 #        print "gc_content=", gc_content
         
@@ -144,15 +140,10 @@ def train_gene_transition(seq_list, output_file):
         gene_file.write(line)
         ct_file.write(line)
         
-        if STRATIFY:
-            k = gc
-        else:
-            k = MIN_GC_CONTENT  
-        
         for m in range(6):
         #print "position=", m+1
             for j in range(16):
-                total_ct = sum(e_M_counts[k - MIN_GC_CONTENT][m][j])
+                total_ct = sum(e_M_counts[gc - MIN_GC_CONTENT][m][j])
                 #  print dimer_list[j],
                 line = ""
                 line_ct = ""
@@ -161,7 +152,7 @@ def train_gene_transition(seq_list, output_file):
                     if total_ct > 0:
                         codon = "%s%s%s" % (digit2nt[j/4], digit2nt[j%4], digit2nt[i])
                         
-                        ct = e_M_counts[k-MIN_GC_CONTENT][m][j][i]
+                        ct = e_M_counts[gc-MIN_GC_CONTENT][m][j][i]
                         
                         
                         
@@ -232,11 +223,9 @@ def train_start_stop_adjacent_prob(seq_list):
                         
     for seq in seq_list:
         
-        if STRATIFY:
-            gc_content = get_gc_content(seq)
-        else:
-            gc_content = MIN_GC_CONTENT        
-            #os.stderr.write("%d\n"%gc_content); 
+        gc_content = get_gc_content(seq)
+    
+         #os.stderr.write("%d\n"%gc_content); 
         for key in prob_counts_dict.keys():
             subseq = get_start_stop_subseq(seq, key)
             for i in range(61):
@@ -256,18 +245,12 @@ def write_start_stop_file(filename, prob_counts):
         line_ct = "%s\n" % gc
         outfile.write(line)
         outfile_ct.write(line_ct)
-        
-        if STRATIFY:
-            k = gc
-        else:
-            k = MIN_GC_CONTENT
-        
         for i in range(61):
             line = "";
             line_ct = "";
-            total_ct = sum(prob_counts[k - MIN_GC_CONTENT][i])
+            total_ct = sum(prob_counts[gc - MIN_GC_CONTENT][i])
             for j in range(64):
-                ct = prob_counts[k - MIN_GC_CONTENT][i][j]
+                ct = prob_counts[gc - MIN_GC_CONTENT][i][j]
                 if total_ct > 0:
                     prob = round(float(ct + 1) / (total_ct + 1), 6)
                 else:
@@ -308,11 +291,8 @@ def train_non_coding(seq_list):
     r_r_counts = [[[0 for i in range(4)] for j in range(4)] for g in range(NUM_STRATIFY)]
         
     for seq in seq_list:
-        if STRATIFY:
-            gc_content = get_gc_content(seq)
-        else:
-            gc_content = MIN_GC_CONTENT        
-        
+        gc_content = get_gc_content(seq)
+     
         for t in range(len(seq)-1):
             fr = nt_dict.get(seq[t], -1)
             to = nt_dict.get(seq[t+1], -1)
@@ -326,18 +306,13 @@ def train_non_coding(seq_list):
         line = "%s\n" % gc
         noncoding_file.write(line)
         
-        if STRATIFY:
-            k = gc
-        else:
-            k = MIN_GC_CONTENT  
-        
         for j in range(4):
-            total_ct = sum(r_r_counts[k - MIN_GC_CONTENT][j])
+            total_ct = sum(r_r_counts[gc - MIN_GC_CONTENT][j])
             #  print dimer_list[j],
             line = "";
             for i in range(4):
                 if total_ct > 0:
-                    ct = r_r_counts[k-MIN_GC_CONTENT][j][i]
+                    ct = r_r_counts[gc-MIN_GC_CONTENT][j][i]
                     if ct == 0:
                         prob = 0.0001
                     else:
@@ -385,9 +360,6 @@ if __name__ == '__main__':
     parser.add_option("-g", "--gc", dest="gc_content", action="store_true", default=True, help="stratify by gene GC content")
     
     (opts, args) = parser.parse_args()
-    
-    STRATIFY = opts.gc_content
-    msg = "Stratify= %s" % STRATIFY
     
     gene_list = []
     noncoding_list = []
