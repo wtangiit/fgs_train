@@ -107,7 +107,7 @@ def parse_input_dir(input_dir):
             noncoding_list.extend(seq_list)
     return gene_list, noncoding_list
     
-def train_gene_transition(seq_list, output_file):
+def train_gene_transition(seq_list, output_file, output_prefix=""):
     '''train transition probability of matching states'''
     
     e_M_counts = [[[[0 for i in range(4)] for j in range(16)] for m in range(6)] for g in range(NUM_STRATIFY) ]
@@ -116,6 +116,9 @@ def train_gene_transition(seq_list, output_file):
         stop_codon_list = stop_codons
     if output_file == "rgene":
         stop_codon_list = start1_codons
+        
+    if output_prefix != "":
+        output_file = output_prefix + "_" + output_file    
         
     for seq in seq_list:
         
@@ -187,13 +190,13 @@ def train_gene_transition(seq_list, output_file):
     ct_file.close()
     print "output file produced: %s" % output_file 
      
-def train_gene_transition_two_way(seq_list):
+def train_gene_transition_two_way(seq_list, output_prefix=""):
     '''train gene transition probability files for two ways'''
-    train_gene_transition(seq_list, "gene")
+    train_gene_transition(seq_list, "gene", output_prefix)
     rc_req_list = []
     for seq in seq_list:
         rc_req_list.append(get_reverse_complement(seq))
-    train_gene_transition(rc_req_list, "rgene") 
+    train_gene_transition(rc_req_list, "rgene", output_prefix) 
     
 def get_start_stop_subseq(seq, key):
     '''return the subsequence to check for training start/stop/start1/stop1'''
@@ -213,7 +216,7 @@ def get_start_stop_subseq(seq, key):
     return subseq       
     
     
-def train_start_stop_adjacent_prob(seq_list):
+def train_start_stop_adjacent_prob(seq_list, prefix=""):
     '''train start, stop, start1, stop1, stratify by gene GC content'''
     
     prob_counts_dict = {"start": [[[0 for i in range(64)] for j in range(61)] for g in range(NUM_STRATIFY)],
@@ -234,10 +237,13 @@ def train_start_stop_adjacent_prob(seq_list):
                 prob_counts_dict[key][gc_content-MIN_GC_CONTENT][i][index] += 1
     
     for key in prob_counts_dict.keys():
-        write_start_stop_file(key, prob_counts_dict[key])
+        write_start_stop_file(key, prob_counts_dict[key], prefix)
               
-def write_start_stop_file(filename, prob_counts):
+def write_start_stop_file(filename, prob_counts, prefix=""):
     '''write start stop prob into output files, with gc'''
+    if prefix != "":
+        filename = prefix + "_" + filename
+    
     outfile = open(filename, "w")
     outfile_ct = open(filename+".ct", "w")
     for gc in range(MIN_GC_CONTENT, MAX_GC_CONTENT + 1):
@@ -285,7 +291,7 @@ def get_reverse_complement(seq):
             rseq += "N"
     return rseq            
 
-def train_non_coding(seq_list):
+def train_non_coding(seq_list, prefix=""):
     '''train noncoding file'''
     
     r_r_counts = [[[0 for i in range(4)] for j in range(4)] for g in range(NUM_STRATIFY)]
@@ -300,16 +306,23 @@ def train_non_coding(seq_list):
             if fr >= 0 and to >= 0:
                 r_r_counts[gc_content - MIN_GC_CONTENT][fr][to] += 1
             
-    noncoding_file = open("noncoding", "w")
+    if prefix == "":
+        noncoding_file = open("noncoding", "w")
+        noncoding_ct_file = open("noncoding", "w")
+    else:
+        noncoding_file = open("%s_noncoding" % prefix, "w")
+        noncoding_ct_file = open("%s_noncoding.ct" % prefix, "w")
     
     for gc in range(MIN_GC_CONTENT, MAX_GC_CONTENT+1):
         line = "%s\n" % gc
         noncoding_file.write(line)
+        noncoding_ct_file.write(line)
         
         for j in range(4):
             total_ct = sum(r_r_counts[gc - MIN_GC_CONTENT][j])
             #  print dimer_list[j],
             line = "";
+            line_ct = "";
             for i in range(4):
                 if total_ct > 0:
                     ct = r_r_counts[gc-MIN_GC_CONTENT][j][i]
@@ -320,15 +333,27 @@ def train_non_coding(seq_list):
                         if prob < 0.0001:
                             prob = 0.0001
                 else:
+                    ct = 0
                     prob = 0.0001
                 line += str(prob)
                 line += '\t'
+                line_ct += str(ct)
+                line_ct += '\t'
+                
             line = line.strip('\t')
             line += ('\n')
-            noncoding_file.write(line)                    
+            line_ct = line_ct.strip('\t')
+            line_ct += ('\n')
+            
+            noncoding_file.write(line)
+            noncoding_ct_file.write(line_ct)
                                   
     noncoding_file.close()
-    print "output file produced: noncoding"   
+    noncoding_ct_file.close()
+    if prefix == "":
+        print "output file produced: noncoding"
+    else:
+        print "output file produced: %s_noncoding" % prefix
         
 def fgs_train_dir(input_dir):
     '''training fgs by input directory. invoked by fgs_train_pipelie'''
