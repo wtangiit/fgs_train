@@ -27,6 +27,11 @@ def number2dimer(number):
     return nt1+nt2    
 
 def list_fit(ylist, m, ij, weight_line_values=[]):
+    ''' 
+    ylist               4x45 list
+    m                   int  (state, M0, M1, etc)
+    ij                  int  (dinucleotide AA, AC, etc)
+    weight_line_values  4x45 list   ''' 
     xi = arange(0,45)
     A = array([ xi, ones(45)])
 
@@ -57,7 +62,7 @@ def list_fit(ylist, m, ij, weight_line_values=[]):
     if len(weight_line_values) > 0: #plot weight line
         ax2 = ax.twinx()
         plots.append(ax2.plot(range(26, 71), weight_line_values, '-xm', markeredgewidth=1))
-        ax2.set_ylim(0, 400000)
+#        ax2.set_ylim(0, 400000)
         ax2.set_ylabel('triplet count')
         
         
@@ -135,7 +140,8 @@ if __name__ == '__main__':
     
     (opts, args) = parser.parse_args()
     
-    data_lists = parse_file(opts.input)  #datalists array of 6x16x4x45
+    data_lists = parse_file(opts.input)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
+                                         #                   m.ij. .g 
     
     if opts.weight:
         weight_lists = parse_file(opts.weight)
