@@ -6,7 +6,7 @@ take trained gene.ct or rgene.ct as input, generate a new trained file gene.fit 
 transition probability is the linear function of gc content. In the mean time, generate the 
 plots showing linear regression.
 
-./linear_fit.py  -i gene -w gene.ct
+./linear_fit.py  gene.ct [ -o outstem ] 
 '''
 import os
 from optparse import OptionParser
@@ -160,13 +160,15 @@ def gen_fitted_file(linear_parameters):
     outfile.close()    
     
 if __name__ == '__main__':
-    usage  = "usage: %prog -w <training_gene.ct> -o <output gene>"
+    usage  = "usage: %prog <training_gene.ct> [-o <output gene>]"
     parser = OptionParser(usage)
-    parser.add_option("-w", "--weight",  dest="weight", type = "string", default=None, help="<input weighting data>")
+#    parser.add_option("-w", "--weight",  dest="weight", type = "string", default=None, help="<input weighting data>")
     parser.add_option("-o", "--output",  dest="output", type = "string", default=None, help="<ouptut trained matrix>>")
     
     (opts, args) = parser.parse_args()
-    input_filename = opts.weight 
+    input_filename = args[0] 
+    if(not os.path.isfile(input_filename)):
+         sys.exit("Input file %s does not exist"%(args[0]))
     weight_lists = parse_file(input_filename)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
     
     if opts.output: 
