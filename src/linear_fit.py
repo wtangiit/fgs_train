@@ -37,6 +37,7 @@ def list_fit(counts, m, ij):
     counts              4x45 list containing counts for each of 4 nucleotides at each of 45 gc buckets
     m                   int  (state, M0, M1, etc)
     ij                  int  (dinucleotide AA, AC, etc)
+    Returns list of list of fit parameters
        ''' 
     xi = arange(0,45)
     A = array([ xi, ones(45)])
@@ -65,8 +66,7 @@ def list_fit(counts, m, ij):
     for k in range(4):
         y = ylist[k]
         p0 = [np.average(y), 0]
-        print "p0 ", p0
-
+        
         inverr=inv_weight[k]
         to_nt = digit2nt[k]
 
@@ -78,7 +78,7 @@ def list_fit(counts, m, ij):
         plots.append( [ax.errorbar(range(26, 71),y, yerr=inverr, fmt=linestyle1[k]  )[0] ])
         legend_labels.append(to_nt)
         
-        print "plotting line M%s:P(%s|%s), slope=%.4f, intercept=%.4f" % (m, to_nt, from_dimer, w[1], w[0])
+        print "plotting line M%s:P(%s|%s), slope=% .4f, intercept=%.4f" % (m, to_nt, from_dimer, w[1], w[0])
         
     if len(total_counts) > 0: #plot weight line
         ax2 = ax.twinx()
@@ -124,22 +124,22 @@ def gen_fitted_file(linear_parameters):
         for ij in range(16):
             for k in range(4):
                 w = linear_parameters[m][ij][k]
-                slope = w[1]
+                slope     = w[1]
                 intercept = w[0]
                 for g in range(45):
-                    if g < 5:
+                    if   g < 5:
                         xi = 5
-                    else:
-                        xi = g  
-                    if g >40 :
+                    elif g > 40:
                         xi = 40
                     else:
                         xi = g  
 
                     prob = slope * xi + intercept
-                    if prob < 0.0001:
+                    if prob  < 0.0001:
                         prob = 0.0001
-                        
+                    if prob  > 0.9999:
+                        prob = 0.9999
+                       
                     fit_data_lists[g][m][ij].append(prob)
     
     outfile = open("gene.fit", "w")
