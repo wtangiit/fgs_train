@@ -28,7 +28,7 @@ foreach $folder (@files)
         if (-e "$folder_path"."/contigs" && -e "$folder_path"."/Features/peg/tbl") {
             print "processing $folder\n";            
             $prefix = "$outdir"."/fgs_train_"."$folder";
-            $status = `./rast_train_prepare.py -d $folder_path -p $prefix`;
+            $status = `rast_train_prepare.py -d $folder_path -p $prefix`;
             print "processing $folder done. $status\n";
         }
     }
