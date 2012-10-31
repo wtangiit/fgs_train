@@ -28,26 +28,28 @@ if __name__ == '__main__':
        a = .5 -gc / 2
        t = .5 -gc / 2
        c =  gc / 2
-       g =  gc / 2
-       if ( (j == 2 or j == 5) and k== 12 and rev==0):
+       g =  gc / 2 
+       if rev ==0: 
+        if ( (j == 2 or j == 5) and k== 12 ):
           g=0.0001
           a=0.0001
           r = c+t
           c = c/(r +.0002)
           t = t/(r +.0002)
-       if ( (j == 2 or j == 5) and k== 14 and rev==0):
+        if ( (j == 2 or j == 5) and k== 14 ):
           a=0.0001 
           r=c+g+t
           c = c/(r +.0001)
           g = g/(r +.0001)
           t = t/(r +.0001)
-       if ( (j == 2 or j == 5) and (k== 7 or k==13 or k==15) and rev==1):
+       if rev ==1:
+        if ( (j == 2 or j == 5) and (k== 7 or k==13 or k==15) ):
           a=0.0001 
           r=c+g+t
           c = c/(r +.0001)
           g = g/(r +.0001)
           t = t/(r +.0001)
-       if ( (j == 2 or j == 5) and k== 15 and rev==1):
+        if ( (j == 2 or j == 5) and k== 15 ):
           a=0.0001 
           r=c+g+t
           c = c/(r +.0001)
