@@ -44,15 +44,15 @@ def list_fit(counts, m, ij):
     total_counts=array_counts.sum(axis=0)
     y = np.array(counts, dtype=float)
     ylist = array(y / total_counts, dtype=float)
-    print repr(ylist)
-    bogo_weight = np.sqrt((ylist *(1-ylist) / total_counts))  # 4x45  same shape as ylist
-    bogo_weight = np.sqrt(( 1 / total_counts)) * np.ones([  ylist.shape[0] ,1]  )                # 4x45  same shape as ylist
-    print "bogowiehg" , bogo_weight.shape
+
+    inv_weight = np.sqrt((ylist *(1-ylist) / total_counts))  # 4x45  same shape as ylist
+    inv_weight = np.sqrt(( 1 / total_counts)) * np.ones([  ylist.shape[0] ,1]  )                # 4x45  same shape as ylist
     for i in  np.nonzero(total_counts==0): ylist[:,i]=0        # removes nan from divide
-    for i in  np.nonzero(total_counts==0): bogo_weight[:,i]=.1 # assigns nonzero errorbars 
+    for i in  np.nonzero(total_counts==0): inv_weight[:,i]=1 # assigns nonzero errorbars 
+ #   print repr(ylist)
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
-
 
     from_dimer = number2dimer(ij)
     plt.title("M%d P(X|%s)" % (m, from_dimer))
@@ -67,15 +67,15 @@ def list_fit(counts, m, ij):
         p0 = [np.average(y), 0]
         print "p0 ", p0
 
-        bogoerr=bogo_weight[k]
+        inverr=inv_weight[k]
         to_nt = digit2nt[k]
 
-        w = scipy.optimize.leastsq(errfunc, p0, args=(xi,y,bogoerr),  maxfev=2000 )[0]
+        w = scipy.optimize.leastsq(errfunc, p0, args=(xi,y,inverr),  maxfev=2000 )[0]
         parameter_list.append(w)
         
         line = w[0] + w[1]*xi # regression line
         plots.append(ax.plot(range(26, 71),line,linestyle2[k]))
-        plots.append( [ax.errorbar(range(26, 71),y, yerr=bogoerr, fmt=linestyle1[k]  )[0] ])
+        plots.append( [ax.errorbar(range(26, 71),y, yerr=inverr, fmt=linestyle1[k]  )[0] ])
         legend_labels.append(to_nt)
         
         print "plotting line M%s:P(%s|%s), slope=%.4f, intercept=%.4f" % (m, to_nt, from_dimer, w[1], w[0])
@@ -83,6 +83,7 @@ def list_fit(counts, m, ij):
     if len(total_counts) > 0: #plot weight line
         ax2 = ax.twinx()
         plots.append(ax2.plot(range(26, 71), total_counts, '-xm', markeredgewidth=1))
+        ax.set_ylim(0, 1)
 #        ax2.set_ylim(0, 400000)
         ax2.set_ylabel('triplet count')
     
@@ -123,13 +124,18 @@ def gen_fitted_file(linear_parameters):
         for ij in range(16):
             for k in range(4):
                 w = linear_parameters[m][ij][k]
-                slope = w[0]
-                intercept = w[1]
+                slope = w[1]
+                intercept = w[0]
                 for g in range(45):
                     if g < 5:
                         xi = 5
                     else:
                         xi = g  
+                    if g >40 :
+                        xi = 40
+                    else:
+                        xi = g  
+
                     prob = slope * xi + intercept
                     if prob < 0.0001:
                         prob = 0.0001
@@ -178,3 +184,4 @@ if __name__ == '__main__':
             linear_parameter[m][ij] = parameters
                 
     gen_fitted_file(linear_parameter)
+    print "Done."
