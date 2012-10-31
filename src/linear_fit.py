@@ -10,6 +10,7 @@ plots showing linear regression.
 '''
 import os
 from optparse import OptionParser
+import numpy as np
 from numpy import arange,array,ones,linalg
 from pylab import plot,show
 import matplotlib.pyplot as plt
@@ -26,48 +27,58 @@ def number2dimer(number):
     nt2 = digit2nt[digit2]
     return nt1+nt2    
 
-def list_fit(ylist, m, ij, weight_line_values=[]):
+def list_fit(counts, m, ij):
     ''' 
-    ylist               4x45 list
+    counts              4x45 list containing counts for each of 4 nucleotides at each of 45 gc buckets
     m                   int  (state, M0, M1, etc)
     ij                  int  (dinucleotide AA, AC, etc)
-    weight_line_values  4x45 list   ''' 
+       ''' 
     xi = arange(0,45)
     A = array([ xi, ones(45)])
-
+    array_counts = np.array(counts, dtype=float)
+    total_counts=array_counts.sum(axis=0)
+    y = np.array(counts, dtype=float)
+    ylist = array(y / total_counts, dtype=float)
+    bogo_weight = np.sqrt((ylist *(1-ylist) / total_counts))  # 4x45  same shape as ylist
+    for i in  np.nonzero(total_counts==0): ylist[:,i]=0
+    for i in  np.nonzero(total_counts==0): bogo_weight[:,i]=.1
+    print repr(ylist)
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    
+
     from_dimer = number2dimer(ij)
     plt.title("M%d P(X|%s)" % (m, from_dimer))
-    
+
     plots = []
     legend_labels = []
     
     parameter_list = []
-    
+
     for k in range(4):
         y = ylist[k]
+        bogoerr=bogo_weight[k]
         to_nt = digit2nt[k]
         
         w = linalg.lstsq(A.T,y)[0] # obtaining the parameters
         parameter_list.append(w)
         
         line = w[0]*xi+w[1] # regression line
-        plots.append(ax.plot(range(26, 71),line,linestyle2[k],range(26, 71),y, linestyle1[k]))
+        plots.append(ax.plot(range(26, 71),line,linestyle2[k]))
+        plots.append( [ax.errorbar(range(26, 71),y, yerr=bogoerr, fmt=linestyle1[k]  )[0] ])
+
         legend_labels.append(to_nt)
         
-        print "plotting line M%s:P(%s|%s), slope=%.4f, inception=%.4f" % (m, to_nt, from_dimer, w[0], w[1])
+        print "plotting line M%s:P(%s|%s), slope=%.4f, intercept=%.4f" % (m, to_nt, from_dimer, w[0], w[1])
         
-    if len(weight_line_values) > 0: #plot weight line
+    if len(total_counts) > 0: #plot weight line
         ax2 = ax.twinx()
-        plots.append(ax2.plot(range(26, 71), weight_line_values, '-xm', markeredgewidth=1))
+        plots.append(ax2.plot(range(26, 71), total_counts, '-xm', markeredgewidth=1))
 #        ax2.set_ylim(0, 400000)
         ax2.set_ylabel('triplet count')
-        
-        
-    ax.legend((plots[0][1], plots[1][1], plots[2][1], plots[3][1], ), ('A', 'C', 'G', 'T'), loc=0)
-            
+    
+    
+    ax.legend((plots[1][0], plots[3][0], plots[5][0], plots[7][0], ), ('A', 'C', 'G', 'T'), loc=0)
+
     ax.set_xlabel('GC content')
     ax.set_ylabel('probability')
     ax.grid(True)
@@ -133,34 +144,26 @@ def gen_fitted_file(linear_parameters):
     outfile.close()    
     
 if __name__ == '__main__':
-    usage  = "usage: %prog -i <input training data>"
+    usage  = "usage: %prog -w <training_gene.ct> -o <output gene>"
     parser = OptionParser(usage)
-    parser.add_option("-i", "--input",  dest="input", type = "string", default=None, help="<input training data>")
+    parser.add_option("-o", "--output",  dest="output", type = "string", default=None, help="<ouptut trained matrix>>")
     parser.add_option("-w", "--weight",  dest="weight", type = "string", default=None, help="<input weighting data>")
     
     (opts, args) = parser.parse_args()
     
-    data_lists = parse_file(opts.input)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
-                                         #                   m.ij. .g 
-    
-    if opts.weight:
-        weight_lists = parse_file(opts.weight)
+    weight_lists = parse_file(opts.weight)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
             
+    out_handle = open(opts.output, "w")  
+
     linear_parameter = [[[]for ij in range(16)] for m in range(6)]
     
     for m in range(6):
         for ij in range(16):
-            ylist = data_lists[m][ij]    #ylist  4x45
+            ylist = weight_lists[m][ij]    #ylist  4x45
             
             weight_line = []
             
-            if opts.weight:
-                for g in range(45):
-                    weight_ct = weight_lists[m][ij][0][g]
-                    weight_line.append(weight_ct)
-                        
-            parameters = list_fit(ylist, m, ij, weight_line)
-            
+            parameters = list_fit(ylist, m, ij )
             
             linear_parameter[m][ij] = parameters
                 
