@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-'''do linear fit for generated gene/rgene file
+'''do linear fit for generated gene.ct / rgene.ct file
 
-take trained gene or rgene as input, generate a new trained file gene.fit or rgene.fit where
+take trained gene.ct or rgene.ct as input, generate a new trained file gene.fit or rgene.fit where
 transition probability is the linear function of gc content. In the mean time, generate the 
 plots showing linear regression.
 
@@ -11,7 +11,9 @@ plots showing linear regression.
 import os
 from optparse import OptionParser
 import numpy as np
-from numpy import arange,array,ones,linalg
+import scipy
+from scipy.optimize import leastsq
+from numpy import arange,array,ones
 from pylab import plot,show
 import matplotlib.pyplot as plt
 
@@ -19,6 +21,9 @@ digit2nt = {0: 'A', 1:'C', 2:'G', 3:'T'}
 
 linestyle1 = ['ob', 'or', 'ok', 'og']
 linestyle2 = ['-b', '-r', '-k', '-g',]
+
+linfunc = lambda p,x:      p[0] + p[1]*x   
+errfunc = lambda p,x,y,er : (y-linfunc(p,x) ) / er 
 
 def number2dimer(number):
     digit1 = number / 4
@@ -39,12 +44,15 @@ def list_fit(counts, m, ij):
     total_counts=array_counts.sum(axis=0)
     y = np.array(counts, dtype=float)
     ylist = array(y / total_counts, dtype=float)
-    bogo_weight = np.sqrt((ylist *(1-ylist) / total_counts))  # 4x45  same shape as ylist
-    for i in  np.nonzero(total_counts==0): ylist[:,i]=0
-    for i in  np.nonzero(total_counts==0): bogo_weight[:,i]=.1
     print repr(ylist)
+    bogo_weight = np.sqrt((ylist *(1-ylist) / total_counts))  # 4x45  same shape as ylist
+    bogo_weight = np.sqrt(( 1 / total_counts)) * np.ones([  ylist.shape[0] ,1]  )                # 4x45  same shape as ylist
+    print "bogowiehg" , bogo_weight.shape
+    for i in  np.nonzero(total_counts==0): ylist[:,i]=0        # removes nan from divide
+    for i in  np.nonzero(total_counts==0): bogo_weight[:,i]=.1 # assigns nonzero errorbars 
     fig = plt.figure()
     ax = fig.add_subplot(111)
+
 
     from_dimer = number2dimer(ij)
     plt.title("M%d P(X|%s)" % (m, from_dimer))
@@ -56,19 +64,21 @@ def list_fit(counts, m, ij):
 
     for k in range(4):
         y = ylist[k]
+        p0 = [np.average(y), 0]
+        print "p0 ", p0
+
         bogoerr=bogo_weight[k]
         to_nt = digit2nt[k]
-        
-        w = linalg.lstsq(A.T,y)[0] # obtaining the parameters
+
+        w = scipy.optimize.leastsq(errfunc, p0, args=(xi,y,bogoerr),  maxfev=2000 )[0]
         parameter_list.append(w)
         
-        line = w[0]*xi+w[1] # regression line
+        line = w[0] + w[1]*xi # regression line
         plots.append(ax.plot(range(26, 71),line,linestyle2[k]))
         plots.append( [ax.errorbar(range(26, 71),y, yerr=bogoerr, fmt=linestyle1[k]  )[0] ])
-
         legend_labels.append(to_nt)
         
-        print "plotting line M%s:P(%s|%s), slope=%.4f, intercept=%.4f" % (m, to_nt, from_dimer, w[0], w[1])
+        print "plotting line M%s:P(%s|%s), slope=%.4f, intercept=%.4f" % (m, to_nt, from_dimer, w[1], w[0])
         
     if len(total_counts) > 0: #plot weight line
         ax2 = ax.twinx()
@@ -146,8 +156,8 @@ def gen_fitted_file(linear_parameters):
 if __name__ == '__main__':
     usage  = "usage: %prog -w <training_gene.ct> -o <output gene>"
     parser = OptionParser(usage)
-    parser.add_option("-o", "--output",  dest="output", type = "string", default=None, help="<ouptut trained matrix>>")
     parser.add_option("-w", "--weight",  dest="weight", type = "string", default=None, help="<input weighting data>")
+    parser.add_option("-o", "--output",  dest="output", type = "string", default=None, help="<ouptut trained matrix>>")
     
     (opts, args) = parser.parse_args()
     
