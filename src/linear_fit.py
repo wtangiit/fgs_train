@@ -94,7 +94,7 @@ def list_fit(counts, m, ij):
     ax.set_ylabel('probability')
     ax.grid(True)
     
-    savefile = "M%d_%s.png" % (m, from_dimer)
+    savefile = "%s_M%d_%s.png" % (out_filestem, m, from_dimer)
     plt.savefig(savefile)
     
     return parameter_list
@@ -142,7 +142,7 @@ def gen_fitted_file(linear_parameters):
                        
                     fit_data_lists[g][m][ij].append(prob)
     
-    outfile = open("gene.fit", "w")
+    outfile = open("%s.gene.fit"%(out_filestem), "w")
     
     for g in range(45):
         gc = g+26
@@ -166,11 +166,14 @@ if __name__ == '__main__':
     parser.add_option("-o", "--output",  dest="output", type = "string", default=None, help="<ouptut trained matrix>>")
     
     (opts, args) = parser.parse_args()
+    input_filename = opts.weight 
+    weight_lists = parse_file(input_filename)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
     
-    weight_lists = parse_file(opts.weight)  #datalists array of 6x16x4x45  states * dinuc. * final nuc.  * gc bucket 
-            
-    out_handle = open(opts.output, "w")  
-
+    if opts.output: 
+       out_filestem=opts.output
+    else:        
+       out_filestem = os.path.basename(input_filename)
+    
     linear_parameter = [[[]for ij in range(16)] for m in range(6)]
     
     for m in range(6):
