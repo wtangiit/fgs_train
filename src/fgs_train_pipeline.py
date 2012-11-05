@@ -49,7 +49,7 @@ def iterate_director(dir_path, key_list=None):
     return fna_file_list
 
 if __name__ == '__main__':
-    usage  = '''usage: %prog -c <config file>'''
+    usage  = '''usage: %prog -d <dir> -l <list_file>'''
     parser = OptionParser(usage)
     parser.add_option("-d", "--dir", dest="dir", default=None, help="recompile the specified tag")
     parser.add_option("-l", "--list",   dest="list", default=None, help="config file")

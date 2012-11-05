@@ -164,7 +164,7 @@ if __name__ == '__main__':
         parser.error("Missing input file %s"%(opts.input, ))
         sys.exit(1)
             
-    gen_train_seqs(opts.input)
+    gen_train_seqs(opts.input, ".")
     
          
   
