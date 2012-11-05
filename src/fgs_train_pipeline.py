@@ -78,8 +78,8 @@ if __name__ == '__main__':
     else:
         print "list file not specified, will iterate all sequence files within input directory"
     
-    #parent_dir = os.path.dirname(data_dir)
-    tempdata_dir = "fgs_train_output_" + train_name
+    working_dir = os.getcwd()
+    tempdata_dir = working_dir + "/fgs_train_output_" + train_name
     print "fgs_train_output dir: ", tempdata_dir
     
     if not os.path.exists(tempdata_dir):
