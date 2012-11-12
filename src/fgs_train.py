@@ -308,7 +308,7 @@ def train_non_coding(seq_list, prefix=""):
             
     if prefix == "":
         noncoding_file = open("noncoding", "w")
-        noncoding_ct_file = open("noncoding", "w")
+        noncoding_ct_file = open("noncoding.ct", "w")
     else:
         noncoding_file = open("%s_noncoding" % prefix, "w")
         noncoding_ct_file = open("%s_noncoding.ct" % prefix, "w")
