@@ -4,6 +4,9 @@
 sudo apt-get update
 sudo apt-get install git -y
 sudo apt-get install python-biopython -y
+sudo apt-get install scipy -y   # automatically gets numpy
+sudo apt-get install python-matplotlib -y
+
 sudo chown ubuntu /mnt
 
 genomedir=/mnt/genomes
